@@ -1,0 +1,13 @@
+{
+    "query": [
+        {
+            "number": 1,
+            "name": "Roberto BMRP",
+            "ip": "jogarbmrp.com",
+            "port": 7777,
+            "online": 799,
+            "maxplayers": 800,
+            "password": false
+        }
+    ]
+}
