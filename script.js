@@ -1,151 +1,83 @@
-// ============================================================
-// PLACAR AO VIVO - VERSÃO INICIAL
-// Os jogos abaixo são de demonstração.
-// Na próxima etapa podemos trocar este bloco por uma API de
-// futebol e atualizar os resultados automaticamente.
-// ============================================================
+const API_URL="https://v3.football.api-sports.io/fixtures?live=all";
+const $=id=>document.getElementById(id);
+let timer=null;
 
-const games = [
-  {
-    home: "Flamengo",
-    homeShort: "FLA",
-    away: "Palmeiras",
-    awayShort: "PAL",
-    homeScore: 2,
-    awayScore: 0,
-    minute: "72:15",
-    status: "live"
-  },
-  {
-    home: "Corinthians",
-    homeShort: "COR",
-    away: "Santos",
-    awayShort: "SAN",
-    homeScore: 0,
-    awayScore: 0,
-    minute: "Intervalo",
-    status: "ht"
-  },
-  {
-    home: "São Paulo",
-    homeShort: "SAO",
-    away: "Grêmio",
-    awayShort: "GRE",
-    homeScore: 1,
-    awayScore: 1,
-    minute: "58:42",
-    status: "live"
-  },
-  {
-    home: "Bahia",
-    homeShort: "BAH",
-    away: "Cruzeiro",
-    awayShort: "CRU",
-    homeScore: 0,
-    awayScore: 0,
-    minute: "35:08",
-    status: "live"
-  },
-  {
-    home: "Fluminense",
-    homeShort: "FLU",
-    away: "Botafogo",
-    awayShort: "BOT",
-    homeScore: 1,
-    awayScore: 0,
-    minute: "Encerrado",
-    status: "ft"
-  },
-  {
-    home: "Vasco",
-    homeShort: "VAS",
-    away: "Internacional",
-    awayShort: "INT",
-    homeScore: 0,
-    awayScore: 0,
-    minute: "12:31",
-    status: "live"
-  }
-];
+function key(){return localStorage.getItem("football_api_key")||""}
+function interval(){return Number(localStorage.getItem("football_interval")||300)*1000}
 
-function initials(name) {
-  return name
-    .split(" ")
-    .map(part => part[0])
-    .join("")
-    .slice(0, 3)
-    .toUpperCase();
+function openSetup(){
+  $("apiKey").value=key();
+  $("interval").value=String(interval()/1000);
+  $("setup").classList.add("show");
 }
+$("settingsBtn").onclick=openSetup;
+$("closeSetup").onclick=()=>$("setup").classList.remove("show");
 
-function stateText(game) {
-  if (game.status === "ht") return "Intervalo";
-  if (game.status === "ft") return "Encerrado";
-  return game.minute;
+$("saveBtn").onclick=async()=>{
+  const k=$("apiKey").value.trim();
+  if(!k){alert("Digite sua API key.");return}
+  localStorage.setItem("football_api_key",k);
+  localStorage.setItem("football_interval",$("interval").value);
+  $("setup").classList.remove("show");
+  await loadGames();
+  startTimer();
+};
+
+function statusClass(s){
+  if(["1H","2H","ET","P"].includes(s))return"live";
+  if(["HT","BT"].includes(s))return"ht";
+  return"ft";
 }
-
-function renderGames() {
-  const container = document.getElementById("games");
-
-  container.innerHTML = games.map(game => `
+function statusText(f){
+  const s=f.fixture.status.short;
+  if(s==="HT")return"Intervalo";
+  if(["FT","AET","P"].includes(s))return"Encerrado";
+  if(["1H","2H","ET"].includes(s))return`${f.fixture.status.elapsed||0}'`;
+  return f.fixture.status.long||s;
+}
+function esc(s){
+  return String(s??"").replace(/[&<>"']/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#039;"}[m]));
+}
+function team(t,side){
+  const logo=t.logo?`<img class="badge" src="${esc(t.logo)}" alt="">`:`<div class="badge fallback">${esc(t.name).slice(0,3).toUpperCase()}</div>`;
+  return `<div class="team ${side}">${side==="home"?`<div><div class="team-name">${esc(t.name)}</div><span class="team-short">${esc(t.code||"")}</span></div>${logo}`:`${logo}<div><div class="team-name">${esc(t.name)}</div><span class="team-short">${esc(t.code||"")}</span></div>`}</div>`;
+}
+function render(list){
+  const games=list.slice(0,8);
+  $("games").innerHTML=games.map(f=>`
     <article class="game">
-      <div class="team home">
-        <div>
-          <div class="team-name">${game.home}</div>
-          <span class="team-short">${game.homeShort}</span>
-        </div>
-        <div class="badge">${initials(game.home)}</div>
-      </div>
-
+      ${team(f.teams.home,"home")}
       <div class="score">
-        <div class="scoreline">${game.homeScore} - ${game.awayScore}</div>
-        <div class="state ${game.status}">${stateText(game)}</div>
+        <div class="scoreline">${f.goals.home??0} - ${f.goals.away??0}</div>
+        <div class="state ${statusClass(f.fixture.status.short)}">${statusText(f)}</div>
       </div>
-
-      <div class="team away">
-        <div class="badge">${initials(game.away)}</div>
-        <div>
-          <div class="team-name">${game.away}</div>
-          <span class="team-short">${game.awayShort}</span>
-        </div>
-      </div>
-    </article>
-  `).join("");
+      ${team(f.teams.away,"away")}
+    </article>`).join("");
+  $("gameCount").textContent=`${list.length} partida(s) ao vivo • mostrando até 8`;
+  $("empty").style.display=list.length?"none":"block";
 }
 
-function updateClock() {
-  const now = new Date();
-  document.getElementById("clock").textContent =
-    now.toLocaleTimeString("pt-BR", {
-      hour: "2-digit",
-      minute: "2-digit",
-      second: "2-digit"
-    });
-
-  document.getElementById("lastUpdate").textContent =
-    "Última atualização: " + now.toLocaleTimeString("pt-BR");
+async function loadGames(){
+  const k=key();
+  if(!k){$("loading").style.display="none";$("empty").style.display="block";$("empty").textContent="Clique em ⚙ e coloque sua API key.";return}
+  $("loading").style.display="block";
+  try{
+    const r=await fetch(API_URL,{headers:{"x-apisports-key":k}});
+    if(!r.ok)throw new Error("HTTP "+r.status);
+    const data=await r.json();
+    render(data.response||[]);
+    $("status").textContent=`API: ${data.results??0} jogos`;
+    $("lastUpdate").textContent="Atualizado: "+new Date().toLocaleTimeString("pt-BR");
+  }catch(e){
+    $("games").innerHTML="";
+    $("empty").style.display="block";
+    $("empty").textContent="Erro ao carregar. Verifique a API key.";
+    $("status").textContent="Erro na API";
+  }finally{$("loading").style.display="none"}
 }
 
-renderGames();
-updateClock();
-setInterval(updateClock, 1000);
-
-// Simulação: atualiza o relógio de um jogo ao vivo.
-// Isso é apenas para testar o visual antes de conectar uma API.
-setInterval(() => {
-  games.forEach(game => {
-    if (game.status !== "live") return;
-
-    const parts = game.minute.split(":");
-    let seconds = Number(parts[0]) * 60 + Number(parts[1]);
-    seconds += 1;
-
-    const min = Math.floor(seconds / 60);
-    const sec = seconds % 60;
-
-    game.minute =
-      String(min).padStart(2, "0") + ":" +
-      String(sec).padStart(2, "0");
-  });
-
-  renderGames();
-}, 1000);
+function startTimer(){
+  clearInterval(timer);
+  timer=setInterval(loadGames,interval());
+}
+if(key()){loadGames();startTimer()}else openSetup();
