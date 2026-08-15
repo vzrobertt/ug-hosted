@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Placar ao Vivo</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <main class="screen">
+    <header class="topbar">
+      <div>
+        <div class="live-dot"><span></span> AO VIVO</div>
+        <h1>Partidas</h1>
+        <p id="lastUpdate">Atualizando...</p>
+      </div>
+      <div class="clock" id="clock">--:--</div>
+    </header>
+
+    <section class="league">
+      <div class="league-title">
+        <span class="ball">⚽</span>
+        <div>
+          <strong>Brasileirão Série A</strong>
+          <small>Partidas</small>
+        </div>
+      </div>
+      <div id="games"></div>
+    </section>
+
+    <footer>
+      <span>PLACAR AO VIVO</span>
+      <span id="status">Demonstração</span>
+    </footer>
+  </main>
+
+  <script src="script.js"></script>
+</body>
+</html>
